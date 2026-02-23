@@ -53,22 +53,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [supabase, setSupabase] = useState<ReturnType<typeof getSupabaseBrowser> | null>(null);
 
-  const supabase = getSupabaseBrowser();
+  // Initialize Supabase client only on the client side
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setSupabase(getSupabaseBrowser());
+    }
+  }, []);
 
   // Fetch user profile from public.users + clinic ownership
   const fetchProfile = useCallback(
-    async (userId: string, email: string) => {
+    async (client: ReturnType<typeof getSupabaseBrowser>, userId: string, email: string) => {
       try {
         // Get user role
-        const { data: userRow } = await supabase
+        const { data: userRow } = await client
           .from("users")
           .select("id, email, role")
           .eq("id", userId)
           .single();
 
         // Get clinic they own (if any)
-        const { data: ownedClinic } = await supabase
+        const { data: ownedClinic } = await client
           .from("clinics")
           .select("id")
           .eq("owner_id", userId)
@@ -91,16 +97,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
       }
     },
-    [supabase]
+    []
   );
 
   useEffect(() => {
+    if (!supabase) return;
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       setSession(s);
       setUser(s?.user ?? null);
       if (s?.user) {
-        fetchProfile(s.user.id, s.user.email || "");
+        fetchProfile(supabase, s.user.id, s.user.email || "");
       }
       setLoading(false);
     });
@@ -112,7 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(s);
       setUser(s?.user ?? null);
       if (s?.user) {
-        fetchProfile(s.user.id, s.user.email || "");
+        fetchProfile(supabase, s.user.id, s.user.email || "");
       } else {
         setProfile(null);
       }
@@ -122,6 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [supabase, fetchProfile]);
 
   const signOut = useCallback(async () => {
+    if (!supabase) return;
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);

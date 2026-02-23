@@ -4,14 +4,17 @@
 
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
 // ── Browser client (singleton) ──
 // Used in React components, hooks, client-side data fetching
 let browserClient: ReturnType<typeof createClient> | null = null;
 
 export function getSupabaseBrowser() {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error("Supabase environment variables are not configured");
+  }
   if (!browserClient) {
     browserClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {
@@ -27,6 +30,9 @@ export function getSupabaseBrowser() {
 // ── Server client (for API routes / server components) ──
 // Creates a fresh client each time (no singleton) with optional auth header
 export function getSupabaseServer(accessToken?: string) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error("Supabase environment variables are not configured");
+  }
   return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: { persistSession: false },
     global: accessToken
