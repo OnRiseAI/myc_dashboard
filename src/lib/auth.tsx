@@ -58,7 +58,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Initialize Supabase client only on the client side
   useEffect(() => {
     if (typeof window !== "undefined") {
-      setSupabase(getSupabaseBrowser());
+      try {
+        setSupabase(getSupabaseBrowser());
+      } catch (error) {
+        console.error("Failed to initialize Supabase:", error);
+        setLoading(false);
+      }
     }
   }, []);
 
