@@ -1,13 +1,89 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 
+// ═══════════════════════════════════════
+//  TYPES
+// ═══════════════════════════════════════
+
+interface IconProps {
+  name: string;
+  className?: string;
+}
+
+interface StatCardProps {
+  label: string;
+  value: string | number;
+  icon: string;
+  trend?: string;
+  accent?: "teal" | "amber" | "blue" | "purple";
+  badge?: number;
+}
+
+interface CompletenessRingProps {
+  percentage: number;
+}
+
+interface ChecklistItemProps {
+  label: string;
+  done: boolean;
+  onClick: () => void;
+}
+
+interface EnquiryRowProps {
+  name: string;
+  procedure: string;
+  date: string;
+  status: "new" | "contacted" | "converted";
+}
+
+interface SidebarProps {
+  activePage: string;
+  onNavigate: (page: string) => void;
+  clinicName: string;
+  mobileOpen: boolean;
+  onCloseMobile: () => void;
+}
+
+interface ClinicData {
+  name: string;
+  slug: string;
+  description: string | null;
+  description_short: string | null;
+  address: string | null;
+  city: string;
+  country: string;
+  phone: string | null;
+  email: string | null;
+  website_url: string | null;
+  specialties: string[];
+  primary_specialty: string;
+  is_verified: boolean;
+  procedure_count: number;
+  doctor_count: number;
+  photo_count: number;
+  enquiry_count: number;
+  new_enquiry_count: number;
+  view_count: number | null;
+  quality_score: number | null;
+}
+
+interface OverviewPageProps {
+  clinic: ClinicData;
+  onNavigate: (page: string) => void;
+}
+
+interface PlaceholderPageProps {
+  title: string;
+  icon: string;
+  description: string;
+}
 
 // ═══════════════════════════════════════
 //  ICONS
 // ═══════════════════════════════════════
 
-function Icon({ name, className = "w-5 h-5" }) {
-  const icons = {
+function Icon({ name, className = "w-5 h-5" }: IconProps) {
+  const icons: Record<string, React.ReactNode> = {
     home: (
       <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" />
@@ -106,7 +182,7 @@ function Icon({ name, className = "w-5 h-5" }) {
 //  STAT CARD
 // ═══════════════════════════════════════
 
-function StatCard({ label, value, icon, trend = undefined, accent = "teal", badge = undefined }) {
+function StatCard({ label, value, icon, trend, accent = "teal", badge }: StatCardProps) {
   const accentMap = {
     teal: { bg: "rgba(20,184,166,0.08)", border: "rgba(20,184,166,0.12)", text: "text-teal-400", icon: "text-teal-400/60" },
     amber: { bg: "rgba(245,158,11,0.08)", border: "rgba(245,158,11,0.12)", text: "text-amber-400", icon: "text-amber-400/60" },
@@ -144,7 +220,7 @@ function StatCard({ label, value, icon, trend = undefined, accent = "teal", badg
 //  COMPLETENESS RING
 // ═══════════════════════════════════════
 
-function CompletenessRing({ percentage }) {
+function CompletenessRing({ percentage }: CompletenessRingProps) {
   const r = 38;
   const circumference = 2 * Math.PI * r;
   const offset = circumference - (percentage / 100) * circumference;
@@ -173,7 +249,7 @@ function CompletenessRing({ percentage }) {
 //  COMPLETENESS CHECKLIST
 // ═══════════════════════════════════════
 
-function ChecklistItem({ label, done, onClick }) {
+function ChecklistItem({ label, done, onClick }: ChecklistItemProps) {
   return (
     <button
       onClick={onClick}
@@ -200,7 +276,7 @@ function ChecklistItem({ label, done, onClick }) {
 //  ENQUIRY ROW
 // ═══════════════════════════════════════
 
-function EnquiryRow({ name, procedure, date, status }) {
+function EnquiryRow({ name, procedure, date, status }: EnquiryRowProps) {
   const statusStyles = {
     new: { bg: "rgba(20,184,166,0.1)", text: "text-teal-300", label: "New" },
     contacted: { bg: "rgba(59,130,246,0.1)", text: "text-blue-300", label: "Contacted" },
@@ -249,7 +325,7 @@ const NAV_ITEMS = [
   { id: "settings", label: "Settings", icon: "settings" },
 ];
 
-function Sidebar({ activePage, onNavigate, clinicName, mobileOpen, onCloseMobile }) {
+function Sidebar({ activePage, onNavigate, clinicName, mobileOpen, onCloseMobile }: SidebarProps) {
   return (
     <>
       {/* Mobile overlay */}
@@ -356,7 +432,7 @@ function Sidebar({ activePage, onNavigate, clinicName, mobileOpen, onCloseMobile
 //  PAGE: OVERVIEW
 // ═══════════════════════════════════════
 
-function OverviewPage({ clinic, onNavigate }) {
+function OverviewPage({ clinic, onNavigate }: OverviewPageProps) {
   // Compute profile completeness
   const fields = [
     { label: "Clinic description", done: !!clinic.description },
@@ -487,7 +563,7 @@ function OverviewPage({ clinic, onNavigate }) {
 //  PAGE: PLACEHOLDER (for non-overview pages)
 // ═══════════════════════════════════════
 
-function PlaceholderPage({ title, icon, description }) {
+function PlaceholderPage({ title, icon, description }: PlaceholderPageProps) {
   return (
     <div className="flex flex-col items-center justify-center py-24 text-center">
       <div
@@ -508,7 +584,7 @@ function PlaceholderPage({ title, icon, description }) {
   );
 }
 
-const PAGE_META = {
+const PAGE_META: Record<string, PlaceholderPageProps> = {
   profile: { title: "Clinic Profile", icon: "building", description: "Edit your clinic's public-facing information, contact details, and specialties." },
   enquiries: { title: "Enquiries", icon: "inbox", description: "View and manage patient enquiries from your MeetYourClinic listing." },
   doctors: { title: "Doctors & Team", icon: "stethoscope", description: "Manage your team of medical professionals and their credentials." },
@@ -527,7 +603,7 @@ export default function Dashboard() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Simulated clinic data (in production, fetched from Supabase using owner_id)
-  const [clinic] = useState({
+  const [clinic] = useState<ClinicData>({
     name: "Clinic Center",
     slug: "clinic-center-istanbul",
     description: "Medical tourism leader in Istanbul since 2013.",
