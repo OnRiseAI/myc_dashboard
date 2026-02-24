@@ -1,5 +1,12 @@
 "use client";
 import React, { useState } from "react";
+import EnquiriesPage from "./enquiries-page";
+import ProfileEditPage from "./profile-edit-page";
+import PhotosPage from "./photos-page";
+import DoctorsPage from "./doctors-page";
+import ReviewsPage from "./reviews-page";
+import AnalyticsPage from "./analytics-page";
+import SettingsPage from "./settings-page";
 
 // ═══════════════════════════════════════
 //  TYPES
@@ -256,11 +263,10 @@ function ChecklistItem({ label, done, onClick }: ChecklistItemProps) {
       className="w-full flex items-center gap-3 py-2.5 px-3 rounded-lg transition-colors hover:bg-white/[0.03] text-left group"
     >
       <div
-        className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
-          done
-            ? "bg-teal-500/20 border border-teal-500/30"
-            : "border border-white/10 group-hover:border-white/20"
-        }`}
+        className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${done
+          ? "bg-teal-500/20 border border-teal-500/30"
+          : "border border-white/10 group-hover:border-white/20"
+          }`}
       >
         {done && <Icon name="check" className="w-3 h-3 text-teal-400" />}
       </div>
@@ -337,9 +343,8 @@ function Sidebar({ activePage, onNavigate, clinicName, mobileOpen, onCloseMobile
       )}
 
       <aside
-        className={`fixed top-0 left-0 h-full z-50 w-[260px] flex flex-col transition-transform duration-300 lg:translate-x-0 ${
-          mobileOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`fixed top-0 left-0 h-full z-50 w-[260px] flex flex-col transition-transform duration-300 lg:translate-x-0 ${mobileOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
         style={{
           background: "linear-gradient(180deg, rgba(10,22,40,0.98) 0%, rgba(8,18,34,0.99) 100%)",
           borderRight: "1px solid rgba(255,255,255,0.06)",
@@ -380,11 +385,10 @@ function Sidebar({ activePage, onNavigate, clinicName, mobileOpen, onCloseMobile
               <button
                 key={item.id}
                 onClick={() => { onNavigate(item.id); onCloseMobile(); }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-150 group ${
-                  active
-                    ? "bg-teal-500/10 text-white"
-                    : "text-white/45 hover:text-white/70 hover:bg-white/[0.03]"
-                }`}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-150 group ${active
+                  ? "bg-teal-500/10 text-white"
+                  : "text-white/45 hover:text-white/70 hover:bg-white/[0.03]"
+                  }`}
               >
                 <Icon
                   name={item.icon}
@@ -661,9 +665,15 @@ export default function Dashboard() {
       {/* Main content */}
       <main className="lg:ml-[260px] min-h-screen pt-16 lg:pt-0">
         <div className="max-w-[1100px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
-          {activePage === "overview" ? (
-            <OverviewPage clinic={clinic} onNavigate={setActivePage} />
-          ) : (
+          {activePage === "overview" && <OverviewPage clinic={clinic} onNavigate={setActivePage} />}
+          {activePage === "enquiries" && <EnquiriesPage />}
+          {activePage === "profile" && <ProfileEditPage clinic={clinic} onNavigate={setActivePage} />}
+          {activePage === "photos" && <PhotosPage />}
+          {activePage === "doctors" && <DoctorsPage />}
+          {activePage === "reviews" && <ReviewsPage />}
+          {activePage === "analytics" && <AnalyticsPage />}
+          {activePage === "settings" && <SettingsPage />}
+          {!["overview", "enquiries", "profile", "photos", "doctors", "reviews", "analytics", "settings"].includes(activePage) && (
             <PlaceholderPage {...PAGE_META[activePage]} />
           )}
         </div>
