@@ -1,7 +1,9 @@
 "use client";
 
 import EnquiriesPage from "@/components/enquiries-page";
+import { useAuth } from "@/lib/auth";
 
 export default function Enquiries() {
-  return <EnquiriesPage />;
+  const { clinicId } = useAuth();
+  return <EnquiriesPage clinicId={clinicId} />;
 }

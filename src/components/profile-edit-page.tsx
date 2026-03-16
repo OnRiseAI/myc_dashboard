@@ -317,9 +317,7 @@ const SPECIALTY_SUGGESTIONS = [
 //  MAIN PROFILE EDIT PAGE
 // ═══════════════════════════════════════
 
-export default function ProfileEditPage({ clinic: initialClinic, onNavigate }) {
-  // In production, `initialClinic` is passed from the dashboard parent
-  // or fetched via Supabase using the owner's clinic_id
+export default function ProfileEditPage({ clinic: initialClinic, onNavigate, onSave, isSaving: externalSaving }: { clinic: any; onNavigate: any; onSave?: (data: any) => Promise<void>; isSaving?: boolean }) {
 
   const [form, setForm] = useState({
     name: "",
@@ -388,14 +386,9 @@ export default function ProfileEditPage({ clinic: initialClinic, onNavigate }) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      // In production: call Supabase to update the clinic
-      // const { error } = await supabase
-      //   .from('clinics')
-      //   .update({ ...form, updated_at: new Date().toISOString() })
-      //   .eq('id', initialClinic.id);
-
-      // Simulate save
-      await new Promise((r) => setTimeout(r, 1200));
+      if (onSave) {
+        await onSave(form);
+      }
       setOriginalForm({ ...form });
       setToast(true);
       setTimeout(() => setToast(false), 3000);

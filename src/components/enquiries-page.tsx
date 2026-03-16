@@ -497,10 +497,29 @@ export default function EnquiriesPage({ clinicId }: { clinicId?: string | null }
 
   const selectedEnquiry = enquiries.find((e) => e.id === selectedId) || null;
 
-  const handleStatusChange = useCallback((id, newStatus) => {
+  const handleStatusChange = useCallback(async (id: string, newStatus: string) => {
+    // Optimistic local update
     setEnquiries((prev) =>
       prev.map((e) => (e.id === id ? { ...e, status: newStatus } : e))
     );
+    // Persist to Supabase
+    try {
+      const supabase = getSupabaseBrowser();
+      // Try leads table first (most enquiries come from lead funnel)
+      const { error } = await supabase
+        .from("leads")
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq("id", id);
+      if (error) {
+        // Fallback to enquiries table
+        await supabase
+          .from("enquiries")
+          .update({ status: newStatus, updated_at: new Date().toISOString() })
+          .eq("id", id);
+      }
+    } catch (err) {
+      console.error("Failed to persist status change:", err);
+    }
   }, []);
 
   const newCount = counts["new"] || 0;
