@@ -2,14 +2,14 @@
 
 import ProfileEditPage from "@/components/profile-edit-page";
 import { useClinic, useUpdateClinic } from "@/hooks/use-clinic-data";
+import { OnboardingTooltip } from "@/components/onboarding/tooltip";
 
 export default function ProfilePage() {
   const { clinic, loading, refetch } = useClinic();
   const { updateClinic, saving } = useUpdateClinic();
 
-  if (loading) return null; // Layout shows skeleton
+  if (loading) return null;
 
-  // Build the clinic prop shape that ProfileEditPage expects
   const clinicForForm = clinic
     ? {
         id: clinic.id,
@@ -37,14 +37,18 @@ export default function ProfilePage() {
     : null;
 
   return (
-    <ProfileEditPage
-      clinic={clinicForForm}
-      onNavigate={() => {}}
-      onSave={async (formData: Record<string, any>) => {
-        await updateClinic(formData);
-        await refetch();
-      }}
-      isSaving={saving}
-    />
+    <OnboardingTooltip pageId="profile" message="Review and update the details we found for your clinic.">
+      <div>
+        <ProfileEditPage
+          clinic={clinicForForm}
+          onNavigate={() => {}}
+          onSave={async (formData: Record<string, any>) => {
+            await updateClinic(formData);
+            await refetch();
+          }}
+          isSaving={saving}
+        />
+      </div>
+    </OnboardingTooltip>
   );
 }

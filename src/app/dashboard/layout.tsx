@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { RequireAuth, useAuth } from "@/lib/auth";
 import { useClinic } from "@/hooks/use-clinic-data";
+import { useOnboarding } from "@/hooks/use-onboarding";
+import { WelcomeModal } from "@/components/onboarding/welcome-modal";
 
 // ═══════════════════════════════════════
 //  ICONS (extracted from dashboard.tsx)
@@ -196,6 +198,7 @@ function DashboardSkeleton() {
 function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const { signOut } = useAuth();
   const { clinic, loading } = useClinic();
+  const { shouldShowWelcome, dismissWelcome } = useOnboarding();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const clinicName = clinic?.name || "Your Clinic";
@@ -239,6 +242,11 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
           {loading ? <DashboardSkeleton /> : children}
         </div>
       </main>
+
+      {/* Welcome modal (first-time onboarding) */}
+      {shouldShowWelcome && clinic && (
+        <WelcomeModal clinic={clinic} onDismiss={dismissWelcome} />
+      )}
 
       {/* Grid overlay */}
       <div

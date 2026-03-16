@@ -1,6 +1,8 @@
 "use client";
 
 import { useClinic } from "@/hooks/use-clinic-data";
+import { useOnboarding } from "@/hooks/use-onboarding";
+import { ProgressNudges } from "@/components/onboarding/progress-nudges";
 import { useRouter } from "next/navigation";
 
 // ═══════════════════════════════════════
@@ -72,6 +74,7 @@ function CompletenessRing({ percentage }: { percentage: number }) {
 
 export default function OverviewPage() {
   const { clinic } = useClinic();
+  const { activeNudges, dismissNudge, shouldShowWelcome } = useOnboarding();
   const router = useRouter();
 
   if (!clinic) return null;
@@ -95,6 +98,11 @@ export default function OverviewPage() {
         <h1 className="text-[24px] font-semibold text-white tracking-tight">Welcome back</h1>
         <p className="text-white/40 text-[15px] mt-1">Here&apos;s an overview of your clinic&apos;s performance and profile.</p>
       </div>
+
+      {/* Progress nudges (show after welcome modal is dismissed) */}
+      {!shouldShowWelcome && activeNudges.length > 0 && (
+        <ProgressNudges nudges={activeNudges} onDismiss={dismissNudge} />
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
