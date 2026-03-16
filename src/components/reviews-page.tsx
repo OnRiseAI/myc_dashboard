@@ -1,5 +1,6 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { getSupabaseBrowser } from "@/lib/supabase";
 
 // ═══════════════════════════════════════
 //  ICONS
@@ -22,57 +23,48 @@ function Icon({ name, className = "w-5 h-5" }: { name: string; className?: strin
 }
 
 // ═══════════════════════════════════════
-//  MOCK DATA
-// ═══════════════════════════════════════
-
-const MOCK_REVIEWS = {
-    rating: 4.8,
-    review_count: 124,
-    last_fetched: "2023-10-27T14:32:00Z",
-    source_url: "https://google.com/maps/place/...",
-    reviews: [
-        {
-            id: "r1",
-            author_name: "Emma Thompson",
-            profile_photo_url: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop",
-            rating: 5,
-            text: "Incredible experience from start to finish. The team made me feel completely at ease about traveling for my procedure. The facility was spotless, and the staff's English was perfect. Highly recommend!",
-            relative_time_description: "2 weeks ago"
-        },
-        {
-            id: "r2",
-            author_name: "James Wilson",
-            profile_photo_url: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop",
-            rating: 5,
-            text: "Dr. Jenkins is an absolute artist. I couldn't be happier with my results. The aftercare was also exceptional, with daily check-ins via WhatsApp.",
-            relative_time_description: "1 month ago"
-        },
-        {
-            id: "r3",
-            author_name: "Sophia Martinez",
-            profile_photo_url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop",
-            rating: 4,
-            text: "Very professional clinic. The only reason for 4 stars instead of 5 is that my initial consultation was delayed by 30 minutes. Once seen, the service was excellent.",
-            relative_time_description: "2 months ago"
-        },
-        {
-            id: "r4",
-            author_name: "Oliver Brown",
-            profile_photo_url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop",
-            rating: 5,
-            text: "Traveling abroad for dental implants was daunting, but MeetYourClinic connected me with this amazing team. Saved thousands and got top-tier care.",
-            relative_time_description: "3 months ago"
-        }
-    ]
-};
-
-// ═══════════════════════════════════════
 //  MAIN COMPONENT
 // ═══════════════════════════════════════
 
-export default function ReviewsPage() {
+export default function ReviewsPage({ clinicId }: { clinicId?: string | null }) {
     const [isSyncing, setIsSyncing] = useState(false);
-    const [lastSynced, setLastSynced] = useState(MOCK_REVIEWS.last_fetched);
+    const [lastSynced, setLastSynced] = useState<string | null>(null);
+    const [reviewData, setReviewData] = useState<{
+        rating: number;
+        review_count: number;
+        reviews: any[];
+    }>({ rating: 0, review_count: 0, reviews: [] });
+
+    // Fetch real Google reviews from Supabase
+    useEffect(() => {
+        if (!clinicId) return;
+        const fetchReviews = async () => {
+            const supabase = getSupabaseBrowser();
+            const { data } = await supabase
+                .from("google_reviews")
+                .select("rating, review_count, reviews, last_fetched")
+                .eq("clinic_id", clinicId)
+                .limit(1);
+
+            if (data && data.length > 0) {
+                const row = data[0];
+                setReviewData({
+                    rating: row.rating || 0,
+                    review_count: row.review_count || 0,
+                    reviews: (row.reviews || []).map((r: any, i: number) => ({
+                        id: `r${i}`,
+                        author_name: r.author_name || "Anonymous",
+                        profile_photo_url: "",
+                        rating: r.rating || 5,
+                        text: r.text || "",
+                        relative_time_description: r.relative_time_description || r.time || "",
+                    })),
+                });
+                setLastSynced(row.last_fetched || null);
+            }
+        };
+        fetchReviews();
+    }, [clinicId]);
 
     const handleSync = () => {
         if (isSyncing) return;
@@ -105,6 +97,7 @@ export default function ReviewsPage() {
 
     // Format relative time for the "last synced" display
     const timeSinceSync = () => {
+        if (!lastSynced) return "Never";
         const syncDate = new Date(lastSynced);
         const now = new Date();
         const diffHours = Math.floor((now.getTime() - syncDate.getTime()) / (1000 * 60 * 60));
@@ -145,12 +138,12 @@ export default function ReviewsPage() {
                             Latest Patient Reviews
                         </h2>
                         <span className="text-[12px] text-white/40 font-medium bg-white/5 px-2 py-1 rounded-md">
-                            Showing {MOCK_REVIEWS.reviews.length} of {MOCK_REVIEWS.review_count}
+                            Showing {reviewData.reviews.length} of {reviewData.review_count}
                         </span>
                     </div>
 
                     <div className="p-2 space-y-2">
-                        {MOCK_REVIEWS.reviews.map((review) => (
+                        {reviewData.reviews.map((review) => (
                             <div key={review.id} className="p-5 rounded-lg bg-white/[0.02] hover:bg-white/[0.04] transition-colors group">
                                 <div className="flex items-start justify-between mb-3">
                                     <div className="flex items-center gap-3">
@@ -203,9 +196,9 @@ export default function ReviewsPage() {
                             <div>
                                 <p className="text-[12px] text-white/40 uppercase tracking-widest font-semibold mb-1">Average Rating</p>
                                 <div className="flex items-end gap-3">
-                                    <span className="text-[36px] font-bold text-white leading-none tracking-tighter">{MOCK_REVIEWS.rating}</span>
+                                    <span className="text-[36px] font-bold text-white leading-none tracking-tighter">{reviewData.rating}</span>
                                     <div className="pb-1">
-                                        {renderStars(MOCK_REVIEWS.rating)}
+                                        {renderStars(reviewData.rating)}
                                     </div>
                                 </div>
                             </div>
@@ -215,7 +208,7 @@ export default function ReviewsPage() {
                             <div>
                                 <p className="text-[12px] text-white/40 uppercase tracking-widest font-semibold mb-1">Total Reviews</p>
                                 <div className="flex items-baseline gap-2">
-                                    <span className="text-[24px] font-semibold text-white leading-none tracking-tight">{MOCK_REVIEWS.review_count}</span>
+                                    <span className="text-[24px] font-semibold text-white leading-none tracking-tight">{reviewData.review_count}</span>
                                     <span className="text-[12px] text-white/40">Verified Patients</span>
                                 </div>
                             </div>

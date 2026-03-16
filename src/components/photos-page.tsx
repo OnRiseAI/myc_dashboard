@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 // ═══════════════════════════════════════
 //  ICONS
@@ -24,22 +24,37 @@ function Icon({ name, className = "w-5 h-5" }: { name: string; className?: strin
 }
 
 // ═══════════════════════════════════════
-//  MOCK DATA
-// ═══════════════════════════════════════
-
-const INITIAL_PHOTOS = [
-    { id: "1", type: "clinic", url: "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=800&q=80", isFeatured: true, title: "Clinic Reception" },
-    { id: "2", type: "clinic", url: "https://images.unsplash.com/photo-1504439468489-c8920d786a2b?auto=format&fit=crop&w=800&q=80", isFeatured: false, title: "Operating Room" },
-    { id: "5", type: "certificates", url: "https://images.unsplash.com/photo-1589829085413-56de8ae18c73?auto=format&fit=crop&w=800&q=80", isFeatured: true, title: "JCI Accreditation" },
-];
-
-// ═══════════════════════════════════════
 //  MAIN PAGE
 // ═══════════════════════════════════════
 
-export default function PhotosPage() {
+export default function PhotosPage({ clinicId }: { clinicId?: string | null }) {
     const [activeTab, setActiveTab] = useState<"clinic" | "certificates">("clinic");
-    const [photos, setPhotos] = useState(INITIAL_PHOTOS);
+    const [photos, setPhotos] = useState<any[]>([]);
+
+    // Fetch real photos from Supabase
+    useEffect(() => {
+        if (!clinicId) return;
+        const fetchPhotos = async () => {
+            const { getSupabaseBrowser } = await import("@/lib/supabase");
+            const supabase = getSupabaseBrowser();
+            const { data } = await supabase
+                .from("clinic_photos")
+                .select("id, url, alt_text, sort_order")
+                .eq("clinic_id", clinicId)
+                .order("sort_order", { ascending: true });
+
+            if (data && data.length > 0) {
+                setPhotos(data.map((p: any) => ({
+                    id: p.id,
+                    type: "clinic",
+                    url: p.url,
+                    isFeatured: p.sort_order === 0,
+                    title: p.alt_text || `Photo ${p.sort_order + 1}`,
+                })));
+            }
+        };
+        fetchPhotos();
+    }, [clinicId]);
 
     // Auto-fetch simulation state
     const [isFetching, setIsFetching] = useState(false);

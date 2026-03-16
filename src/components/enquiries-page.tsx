@@ -1,5 +1,6 @@
 "use client";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { getSupabaseBrowser } from "@/lib/supabase";
 
 // ═══════════════════════════════════════
 //  ICONS
@@ -76,50 +77,8 @@ function timeAgo(dateStr) {
 }
 
 // ═══════════════════════════════════════
-//  MOCK DATA (replaced by Supabase in production)
+//  DATA (fetched from Supabase)
 // ═══════════════════════════════════════
-
-const MOCK_ENQUIRIES = [
-  {
-    id: "1", type: "form", name: "Sarah Johnson", email: "sarah.j@gmail.com", phone: "+44 7700 900123",
-    country_of_residence: "United Kingdom", message: "Hi, I'm interested in a rhinoplasty consultation. I've been considering this for a while and would love to know about your packages including accommodation. What's the typical recovery time before I can fly home?",
-    procedure: "Rhinoplasty", source: "Clinic Page", status: "new",
-    created_at: new Date(Date.now() - 2 * 3600000).toISOString(),
-  },
-  {
-    id: "2", type: "form", name: "Michael Chen", email: "m.chen@outlook.com", phone: "+1 415 555 0199",
-    country_of_residence: "United States", message: "Looking for FUE hair transplant pricing. I'm a NW3 and want around 3000 grafts. Do you have any availability in March?",
-    procedure: "Hair Transplant FUE", source: "Procedure Page", status: "new",
-    created_at: new Date(Date.now() - 5 * 3600000).toISOString(),
-  },
-  {
-    id: "3", type: "chat", name: "Emma Williams", email: null, phone: "+44 7911 123456",
-    country_of_residence: "United Kingdom",
-    message: "Interested in dental veneers, 8-10 teeth. Timeframe: next 2 months. Budget: flexible.",
-    procedure: "Dental Veneers", source: "Chat Widget", status: "contacted",
-    created_at: new Date(Date.now() - 24 * 3600000).toISOString(),
-    category: "Dental", timeframe: "1-2 months",
-  },
-  {
-    id: "4", type: "form", name: "Ahmed Al-Rashid", email: "ahmed.r@yahoo.com", phone: "+971 50 123 4567",
-    country_of_residence: "UAE", message: "I need a full quote for BBL and liposuction combined. My wife is also interested in a breast augmentation. Can we both get consultations together?",
-    procedure: "BBL + Liposuction", source: "Google", status: "qualified",
-    created_at: new Date(Date.now() - 3 * 86400000).toISOString(),
-  },
-  {
-    id: "5", type: "form", name: "Lisa Mueller", email: "lisa.m@web.de", phone: "+49 170 1234567",
-    country_of_residence: "Germany", message: "Requesting information about gastric sleeve surgery. BMI is 38. Do you accept patients with controlled type 2 diabetes?",
-    procedure: "Gastric Sleeve", source: "Clinic Page", status: "converted",
-    created_at: new Date(Date.now() - 7 * 86400000).toISOString(),
-  },
-  {
-    id: "6", type: "chat", name: "David Park", email: "david.p@gmail.com", phone: "+82 10 9876 5432",
-    country_of_residence: "South Korea", message: "Thinking about LASIK. Currently -4.5 both eyes. Goal: clear vision without contacts.",
-    procedure: "LASIK", source: "Chat Widget", status: "lost",
-    created_at: new Date(Date.now() - 14 * 86400000).toISOString(),
-    category: "Eye Surgery", timeframe: "3+ months",
-  },
-];
 
 // ═══════════════════════════════════════
 //  DETAIL DRAWER
@@ -458,8 +417,52 @@ function FilterTabs({ active, onChange, counts }) {
 //  MAIN ENQUIRIES PAGE
 // ═══════════════════════════════════════
 
-export default function EnquiriesPage() {
-  const [enquiries, setEnquiries] = useState(MOCK_ENQUIRIES);
+export default function EnquiriesPage({ clinicId }: { clinicId?: string | null }) {
+  const [enquiries, setEnquiries] = useState<any[]>([]);
+  const hasFetched = useRef(false);
+
+  // Fetch real enquiries from Supabase (leads table + enquiries table)
+  useEffect(() => {
+    if (!clinicId || hasFetched.current) return;
+    hasFetched.current = true;
+
+    const fetchEnquiries = async () => {
+      const supabase = getSupabaseBrowser();
+
+      // Fetch from leads table (from lead funnel + sidebar form)
+      const { data: leads } = await supabase
+        .from("leads")
+        .select("id, phone, category, goal, extra_details, status, metadata, created_at")
+        .eq("clinic_id", clinicId)
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (leads && leads.length > 0) {
+        const mapped = leads.map((l: any) => {
+          const meta = l.metadata || {};
+          const patientName = meta.patient_name || "Patient";
+          return {
+            id: l.id,
+            type: meta.source === "clinic_sidebar_form" ? "form" : "chat",
+            name: patientName,
+            email: meta.email || null,
+            phone: l.phone || null,
+            country_of_residence: l.metadata?.country || null,
+            message: meta.message || l.extra_details || null,
+            procedure: meta.procedure || l.category || null,
+            source: meta.source === "clinic_sidebar_form" ? "Clinic Page" : "Lead Funnel",
+            status: l.status === "started" ? "new" : l.status === "verified" ? "contacted" : l.status === "handoff_completed" ? "converted" : "new",
+            created_at: l.created_at,
+            category: l.category,
+            timeframe: l.metadata?.timeframe || null,
+          };
+        });
+        setEnquiries(mapped);
+      }
+    };
+
+    fetchEnquiries();
+  }, [clinicId]);
   const [selectedId, setSelectedId] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");

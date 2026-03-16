@@ -1,5 +1,6 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { getSupabaseBrowser } from "@/lib/supabase";
 
 // ═══════════════════════════════════════
 //  ICONS
@@ -21,38 +22,38 @@ function Icon({ name, className = "w-5 h-5" }: { name: string; className?: strin
 }
 
 // ═══════════════════════════════════════
-//  MOCK DATA
-// ═══════════════════════════════════════
-
-const INITIAL_DOCTORS = [
-    {
-        id: "d1",
-        name: "Dr. Sarah Jenkins",
-        title: "Lead Cosmetic Surgeon",
-        specialisation: "Facial Reconstruction",
-        yearsExperience: 12,
-        photoUrl: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=400&q=80",
-        bio: "Dr. Jenkins specializes in advanced facial reconstruction and rhinoplasty.",
-        qualifications: "MD, Board Certified Plastic Surgeon"
-    },
-    {
-        id: "d2",
-        name: "Dr. Ahmed Ali",
-        title: "Senior Dentist",
-        specialisation: "Implantology",
-        yearsExperience: 8,
-        photoUrl: "https://images.unsplash.com/photo-1594824432258-f9b885b5465c?auto=format&fit=crop&w=400&q=80",
-        bio: "Dr. Ali is an expert in full-mouth restorations and dental implants.",
-        qualifications: "DDS, MSc Implantology"
-    }
-];
-
-// ═══════════════════════════════════════
 //  MAIN COMPONENT
 // ═══════════════════════════════════════
 
-export default function DoctorsPage() {
-    const [doctors, setDoctors] = useState(INITIAL_DOCTORS);
+export default function DoctorsPage({ clinicId }: { clinicId?: string | null }) {
+    const [doctors, setDoctors] = useState<any[]>([]);
+
+    // Fetch real doctors from Supabase
+    useEffect(() => {
+        if (!clinicId) return;
+        const fetchDoctors = async () => {
+            const supabase = getSupabaseBrowser();
+            const { data } = await supabase
+                .from("clinic_doctors")
+                .select("id, name, title, specialty, credentials, years_experience, photo_url, bio, is_lead_surgeon, languages")
+                .eq("clinic_id", clinicId)
+                .order("is_lead_surgeon", { ascending: false });
+
+            if (data && data.length > 0) {
+                setDoctors(data.map((d: any) => ({
+                    id: d.id,
+                    name: d.name || "",
+                    title: d.title || (d.is_lead_surgeon ? "Lead Surgeon" : ""),
+                    specialisation: d.specialty || "",
+                    yearsExperience: d.years_experience || 0,
+                    photoUrl: d.photo_url || "",
+                    bio: d.bio || "",
+                    qualifications: d.credentials || "",
+                })));
+            }
+        };
+        fetchDoctors();
+    }, [clinicId]);
     const [isEditing, setIsEditing] = useState<string | null>(null);
 
     const removeDoctor = (id: string) => {

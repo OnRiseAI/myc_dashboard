@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import EnquiriesPage from "./enquiries-page";
 import ProfileEditPage from "./profile-edit-page";
 import PhotosPage from "./photos-page";
@@ -7,6 +7,8 @@ import DoctorsPage from "./doctors-page";
 import ReviewsPage from "./reviews-page";
 import AnalyticsPage from "./analytics-page";
 import SettingsPage from "./settings-page";
+import { useAuth } from "@/lib/auth";
+import { getSupabaseBrowser } from "@/lib/supabase";
 
 // ═══════════════════════════════════════
 //  TYPES
@@ -49,6 +51,7 @@ interface SidebarProps {
   clinicName: string;
   mobileOpen: boolean;
   onCloseMobile: () => void;
+  onSignOut: () => void;
 }
 
 interface ClinicData {
@@ -72,6 +75,18 @@ interface ClinicData {
   new_enquiry_count: number;
   view_count: number | null;
   quality_score: number | null;
+  // Profile edit fields (autofilled from scraped data)
+  year_founded?: string;
+  languages_spoken?: string[];
+  whatsapp?: string;
+  patients_per_year?: string;
+  num_doctors?: string;
+  accepted_payment_methods?: string[];
+  offers_accommodation?: boolean;
+  offers_transfers?: boolean;
+  offers_translator?: boolean;
+  meta_title?: string;
+  meta_description?: string;
 }
 
 interface OverviewPageProps {
@@ -331,7 +346,7 @@ const NAV_ITEMS = [
   { id: "settings", label: "Settings", icon: "settings" },
 ];
 
-function Sidebar({ activePage, onNavigate, clinicName, mobileOpen, onCloseMobile }: SidebarProps) {
+function Sidebar({ activePage, onNavigate, clinicName, mobileOpen, onCloseMobile, onSignOut }: SidebarProps) {
   return (
     <>
       {/* Mobile overlay */}
@@ -422,7 +437,10 @@ function Sidebar({ activePage, onNavigate, clinicName, mobileOpen, onCloseMobile
             <Icon name="external" className="w-4 h-4" />
             <span className="text-[13px]">View Public Listing</span>
           </a>
-          <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-white/35 hover:text-red-400/70 hover:bg-red-500/[0.04] transition-colors">
+          <button
+            onClick={onSignOut}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-white/35 hover:text-red-400/70 hover:bg-red-500/[0.04] transition-colors"
+          >
             <Icon name="log_out" className="w-4 h-4" />
             <span className="text-[13px]">Sign Out</span>
           </button>
@@ -603,25 +621,26 @@ const PAGE_META: Record<string, PlaceholderPageProps> = {
 // ═══════════════════════════════════════
 
 export default function Dashboard() {
+  const { signOut, clinicId } = useAuth();
   const [activePage, setActivePage] = useState("overview");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Simulated clinic data (in production, fetched from Supabase using owner_id)
-  const [clinic] = useState<ClinicData>({
-    name: "Clinic Center",
-    slug: "clinic-center-istanbul",
-    description: "Medical tourism leader in Istanbul since 2013.",
-    description_short: "Medical tourism leader Istanbul since 2013.",
-    address: "Ceceli İş Merkezi, 19 Mayıs, Şişli, Istanbul",
-    city: "Istanbul",
-    country: "Turkey",
+  const [clinic, setClinic] = useState<ClinicData>({
+    name: "Loading...",
+    slug: "",
+    description: null,
+    description_short: null,
+    address: null,
+    city: "",
+    country: "",
     phone: null,
     email: null,
-    website_url: "https://cliniccenter.co.uk",
-    specialties: ["Hair Transplant", "Dental", "Plastic Surgery", "Weight Loss Surgery"],
-    primary_specialty: "Hair Restoration",
-    is_verified: true,
-    procedure_count: 18,
+    website_url: null,
+    specialties: [],
+    primary_specialty: "",
+    is_verified: false,
+    procedure_count: 0,
     doctor_count: 0,
     photo_count: 0,
     enquiry_count: 0,
@@ -629,6 +648,107 @@ export default function Dashboard() {
     view_count: null,
     quality_score: null,
   });
+
+  // Fetch real clinic data from Supabase
+  useEffect(() => {
+    if (!clinicId) return;
+
+    const fetchClinicData = async () => {
+      try {
+        const supabase = getSupabaseBrowser();
+
+        // Fetch clinic + related counts in parallel
+        const [
+          { data: clinicRow },
+          { data: doctors },
+          { data: photos },
+          { data: procedures },
+          { data: enquiries },
+          { data: categories },
+          { data: googleReviews },
+        ] = await Promise.all([
+          supabase
+            .from("clinics")
+            .select(`
+              id, name, slug, description, address,
+              phone, email, website_url, year_founded,
+              is_claimed, is_verified, is_featured,
+              languages_spoken,
+              country_rel:countries(name),
+              city_rel:cities(name),
+              clinic_accreditations(accreditation_name)
+            `)
+            .eq("id", clinicId)
+            .single(),
+          supabase
+            .from("clinic_doctors")
+            .select("id")
+            .eq("clinic_id", clinicId),
+          supabase
+            .from("clinic_photos")
+            .select("id")
+            .eq("clinic_id", clinicId),
+          supabase
+            .from("clinic_procedures")
+            .select("id")
+            .eq("clinic_id", clinicId),
+          supabase
+            .from("leads")
+            .select("id, status")
+            .eq("clinic_id", clinicId),
+          supabase
+            .from("clinic_categories")
+            .select("category:categories(name)")
+            .eq("clinic_id", clinicId),
+          supabase
+            .from("google_reviews")
+            .select("rating, review_count")
+            .eq("clinic_id", clinicId)
+            .limit(1),
+        ]);
+
+        if (!clinicRow) return;
+
+        const specialties = (categories || [])
+          .map((c: any) => c.category?.name)
+          .filter(Boolean);
+        const newEnquiries = (enquiries || []).filter((e: any) => e.status === "started").length;
+
+        setClinic({
+          name: clinicRow.name || "",
+          slug: clinicRow.slug || "",
+          description: clinicRow.description || null,
+          description_short: null,
+          address: clinicRow.address || null,
+          city: (clinicRow as any).city_rel?.name || "",
+          country: (clinicRow as any).country_rel?.name || "",
+          phone: clinicRow.phone || null,
+          email: clinicRow.email || null,
+          website_url: clinicRow.website_url || null,
+          specialties,
+          primary_specialty: specialties[0] || "",
+          is_verified: clinicRow.is_verified || clinicRow.is_claimed || false,
+          procedure_count: procedures?.length || 0,
+          doctor_count: doctors?.length || 0,
+          photo_count: photos?.length || 0,
+          enquiry_count: enquiries?.length || 0,
+          new_enquiry_count: newEnquiries,
+          view_count: null,
+          quality_score: null,
+          // Profile edit autofill fields
+          year_founded: clinicRow.year_founded ? String(clinicRow.year_founded) : "",
+          languages_spoken: clinicRow.languages_spoken || [],
+          num_doctors: doctors?.length ? String(doctors.length) : "",
+        });
+      } catch (err) {
+        console.error("Error fetching clinic data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchClinicData();
+  }, [clinicId]);
 
   return (
     <div className="min-h-screen bg-[#0a1628]">
@@ -660,17 +780,18 @@ export default function Dashboard() {
         clinicName={clinic.name}
         mobileOpen={mobileMenuOpen}
         onCloseMobile={() => setMobileMenuOpen(false)}
+        onSignOut={signOut}
       />
 
       {/* Main content */}
       <main className="lg:ml-[260px] min-h-screen pt-16 lg:pt-0">
         <div className="max-w-[1100px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
           {activePage === "overview" && <OverviewPage clinic={clinic} onNavigate={setActivePage} />}
-          {activePage === "enquiries" && <EnquiriesPage />}
+          {activePage === "enquiries" && <EnquiriesPage clinicId={clinicId} />}
           {activePage === "profile" && <ProfileEditPage clinic={clinic} onNavigate={setActivePage} />}
-          {activePage === "photos" && <PhotosPage />}
-          {activePage === "doctors" && <DoctorsPage />}
-          {activePage === "reviews" && <ReviewsPage />}
+          {activePage === "photos" && <PhotosPage clinicId={clinicId} />}
+          {activePage === "doctors" && <DoctorsPage clinicId={clinicId} />}
+          {activePage === "reviews" && <ReviewsPage clinicId={clinicId} />}
           {activePage === "analytics" && <AnalyticsPage />}
           {activePage === "settings" && <SettingsPage />}
           {!["overview", "enquiries", "profile", "photos", "doctors", "reviews", "analytics", "settings"].includes(activePage) && (
