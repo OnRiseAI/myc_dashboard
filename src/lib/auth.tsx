@@ -140,7 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setSession(null);
     setProfile(null);
-    window.location.href = "/";
+    window.location.href = "/auth?success=signed_out";
   }, [supabase]);
 
   return (
